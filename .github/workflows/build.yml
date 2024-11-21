@@ -21,8 +21,7 @@ jobs:
       with:
         java-version: '17'
         distribution: 'zulu'
-        cache: gradle
-    - run: node sync-dist2shell.js        
+        cache: gradle    
 
     - name: Grant execute permission for gradlew
       run: chmod +x gradlew

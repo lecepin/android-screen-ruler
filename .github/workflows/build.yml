@@ -11,17 +11,13 @@ jobs:
       matrix:
         node-version: [18.x]
     steps:
-    - uses: actions/checkout@v4
-    - name: Use Node.js ${{ matrix.node-version }}
-      uses: actions/setup-node@v4
-      with:
-        node-version: ${{ matrix.node-version }}
-    - name: set up JDK 17
+    - uses: actions/checkout@v4   
+    - name: set up JDK 8
       uses: actions/setup-java@v4
       with:
-        java-version: '17'
+        java-version: '8'
         distribution: 'zulu'
-        cache: gradle    
+        cache: gradle
 
     - name: Grant execute permission for gradlew
       run: chmod +x gradlew

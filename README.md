@@ -1,3 +1,1 @@
-# android_webview_test
-
-<img width="526" alt="image" src="https://github.com/lecepin/android_webview_test/assets/11046969/01471b24-4572-464e-b4ee-fc8bceaaa035">
+![](https://github.com/user-attachments/assets/ae9594f0-4872-4c5d-9921-cdf489a19157)

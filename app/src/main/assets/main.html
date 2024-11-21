@@ -1,0 +1,414 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>标尺</title>
+    <style>
+      body {
+        margin: 0;
+        padding: 0;
+      }
+      canvas {
+        display: block;
+      }
+
+      .ruler-switch,
+      .unit-switch {
+        position: fixed;
+        left: 50%;
+        transform: translateX(-50%);
+        background: rgba(0, 0, 0, 0.8);
+        border-radius: 20px;
+        padding: 4px;
+        display: flex;
+        gap: 4px;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+      }
+
+      .ruler-switch {
+        bottom: 20px;
+      }
+
+      .unit-switch {
+        bottom: 80px;
+      }
+
+      .ruler-switch button,
+      .unit-switch button {
+        border: none;
+        padding: 8px 16px;
+        border-radius: 16px;
+        font-size: 14px;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        background: transparent;
+        color: #888;
+        user-select: none;
+        -webkit-tap-highlight-color: transparent;
+        touch-action: manipulation;
+        white-space: nowrap;
+      }
+
+      .ruler-switch button.active,
+      .unit-switch button.active {
+        background: white;
+        color: #000;
+      }
+
+      .info-button {
+        position: fixed;
+        top: 50%;
+        right: 20px;
+        transform: translateY(-50%);
+        width: 40px;
+        height: 40px;
+        border-radius: 50%;
+        background: rgba(0, 0, 0, 0.8);
+        border: none;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: #888;
+        transition: all 0.3s ease;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+        -webkit-tap-highlight-color: transparent;
+        touch-action: manipulation;
+      }
+
+      .info-button:hover,
+      .info-button:active {
+        color: white;
+        transform: translateY(-50%) scale(1.1);
+      }
+
+      .info-button svg {
+        width: 24px;
+        height: 24px;
+      }
+    </style>
+  </head>
+
+  <body>
+    <canvas id="ruler"></canvas>
+
+    <div class="ruler-switch">
+      <button id="leftBtn" class="active">左侧</button>
+      <button id="topBtn">顶部</button>
+      <button id="diagonalBtn">对角线</button>
+    </div>
+
+    <div class="unit-switch">
+      <button id="cmBtn" class="active">厘米</button>
+      <button id="inchBtn">英寸</button>
+    </div>
+
+    <button class="info-button" id="infoBtn">
+      <svg
+        width="24"
+        height="24"
+        viewBox="0 0 24 24"
+        fill="none"
+        xmlns="http://www.w3.org/2000/svg"
+      >
+        <path
+          d="M12 2C6.48 2 2 6.48 2 12C2 17.52 6.48 22 12 22C17.52 22 22 17.52 22 12C22 6.48 17.52 2 12 2ZM13 17H11V11H13V17ZM13 9H11V7H13V9Z"
+          fill="currentColor"
+        />
+      </svg>
+    </button>
+
+    <script>
+      const canvas = document.getElementById("ruler");
+      const ctx = canvas.getContext("2d");
+      const dpr = window.devicePixelRatio || 1;
+      const margin = 20;
+
+      // 设置画布大小，考虑设备像素比
+      function resizeCanvas() {
+        const width = window.innerWidth;
+        const height = window.innerHeight;
+
+        // 设置画布的实际渲染像素
+        canvas.width = width * dpr;
+        canvas.height = height * dpr;
+
+        // 设置画布的CSS显示大小
+        canvas.style.width = `${width}px`;
+        canvas.style.height = `${height}px`;
+
+        // 缩放上下文以匹配 DPR
+        ctx.scale(dpr, dpr);
+      }
+      resizeCanvas();
+      window.addEventListener("resize", resizeCanvas);
+
+      // 获取像素与厘米的转换比例
+      const pixelsPerCm = Android.getPixelsPerCm();
+
+      let currentUnit = "cm";
+      const cmBtn = document.getElementById("cmBtn");
+      const inchBtn = document.getElementById("inchBtn");
+
+      // 切换单位
+      function switchUnit(unit) {
+        currentUnit = unit;
+        if (unit === "cm") {
+          cmBtn.classList.add("active");
+          inchBtn.classList.remove("active");
+        } else {
+          cmBtn.classList.remove("active");
+          inchBtn.classList.add("active");
+        }
+        drawRuler();
+      }
+
+      cmBtn.addEventListener("click", () => switchUnit("cm"));
+      inchBtn.addEventListener("click", () => switchUnit("inch"));
+
+      let showLeft = true;
+      let showTop = false;
+      let showDiagonal = false;
+
+      const leftBtn = document.getElementById("leftBtn");
+      const topBtn = document.getElementById("topBtn");
+      const diagonalBtn = document.getElementById("diagonalBtn");
+
+      // 切换显示状态
+      function toggleRuler(type) {
+        switch (type) {
+          case "left":
+            showLeft = !showLeft;
+            leftBtn.classList.toggle("active");
+            break;
+          case "top":
+            showTop = !showTop;
+            topBtn.classList.toggle("active");
+            break;
+          case "diagonal":
+            showDiagonal = !showDiagonal;
+            diagonalBtn.classList.toggle("active");
+            break;
+        }
+        drawRuler();
+      }
+
+      leftBtn.addEventListener("click", () => toggleRuler("left"));
+      topBtn.addEventListener("click", () => toggleRuler("top"));
+      diagonalBtn.addEventListener("click", () => toggleRuler("diagonal"));
+
+      function drawRuler() {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+        // 绘制左侧刻度
+        if (showLeft) {
+          drawVerticalRuler();
+        }
+
+        // 绘制顶部刻度
+        if (showTop) {
+          drawHorizontalRuler();
+        }
+
+        // 绘制对角线刻度
+        if (showDiagonal) {
+          drawDiagonalRuler();
+        }
+      }
+
+      function drawVerticalRuler() {
+        const pixelsPerUnit =
+          currentUnit === "cm" ? pixelsPerCm : pixelsPerCm * 2.54;
+        const maxUnits = (window.innerHeight - 2 * margin) / pixelsPerUnit;
+        const fullUnits = Math.floor(maxUnits);
+
+        // 绘制主线
+        ctx.beginPath();
+        ctx.lineWidth = 1;
+        ctx.moveTo(0, margin);
+        ctx.lineTo(0, window.innerHeight - margin);
+        ctx.stroke();
+
+        // 绘制刻度和数字
+        for (let i = 0; i <= fullUnits; i++) {
+          const y = margin + i * pixelsPerUnit;
+
+          // 主刻度
+          ctx.beginPath();
+          ctx.lineWidth = 1;
+          ctx.moveTo(0, y);
+          ctx.lineTo(20, y);
+          ctx.stroke();
+
+          // 数字
+          ctx.save();
+          ctx.translate(35, y);
+          ctx.rotate(Math.PI / 2);
+          ctx.fillText(i.toString(), 0, 0);
+          ctx.restore();
+
+          // 小刻度
+          if (i < maxUnits) {
+            const subDivisions = currentUnit === "cm" ? 10 : 8;
+            const remainingSpace =
+              i === fullUnits
+                ? (maxUnits - fullUnits) * subDivisions
+                : subDivisions;
+
+            for (let j = 1; j < remainingSpace; j++) {
+              const subY = y + (j * pixelsPerUnit) / subDivisions;
+              ctx.beginPath();
+              ctx.lineWidth = 0.5;
+              const subScaleLength = currentUnit === "cm" && j === 5 ? 15 : 10;
+              ctx.moveTo(0, subY);
+              ctx.lineTo(subScaleLength, subY);
+              ctx.stroke();
+            }
+          }
+        }
+      }
+
+      function drawHorizontalRuler() {
+        const pixelsPerUnit =
+          currentUnit === "cm" ? pixelsPerCm : pixelsPerCm * 2.54;
+        const maxUnits = (window.innerWidth - 2 * margin) / pixelsPerUnit;
+        const fullUnits = Math.floor(maxUnits);
+
+        // 绘制主刻度线
+        ctx.beginPath();
+        ctx.lineWidth = 1;
+        ctx.moveTo(margin, 0);
+        ctx.lineTo(window.innerWidth - margin, 0);
+        ctx.stroke();
+
+        // 绘制刻度和数字
+        for (let i = 0; i <= fullUnits; i++) {
+          const x = margin + i * pixelsPerUnit;
+
+          // 主刻度
+          ctx.beginPath();
+          ctx.lineWidth = 1;
+          ctx.moveTo(x, 0);
+          ctx.lineTo(x, 20);
+          ctx.stroke();
+
+          // 数字
+          ctx.save();
+          ctx.translate(x, 35);
+          ctx.fillText(i.toString(), 0, 0);
+          ctx.restore();
+
+          // 小刻度
+          if (i < maxUnits) {
+            const subDivisions = currentUnit === "cm" ? 10 : 8;
+            const remainingSpace =
+              i === fullUnits
+                ? (maxUnits - fullUnits) * subDivisions
+                : subDivisions;
+
+            for (let j = 1; j < remainingSpace; j++) {
+              const subX = x + (j * pixelsPerUnit) / subDivisions;
+              ctx.beginPath();
+              ctx.lineWidth = 0.5;
+              const subScaleLength = currentUnit === "cm" && j === 5 ? 15 : 10;
+              ctx.moveTo(subX, 0);
+              ctx.lineTo(subX, subScaleLength);
+              ctx.stroke();
+            }
+          }
+        }
+      }
+
+      function drawDiagonalRuler() {
+        const width = window.innerWidth;
+        const height = window.innerHeight;
+        const angle = Math.atan2(height, width);
+        const length = Math.sqrt(width * width + height * height);
+
+        ctx.save();
+
+        // 绘制主对角线
+        ctx.beginPath();
+        ctx.lineWidth = 1;
+        ctx.moveTo(0, 0);
+        ctx.lineTo(width, height);
+        ctx.stroke();
+
+        const pixelsPerUnit =
+          currentUnit === "cm" ? pixelsPerCm : pixelsPerCm * 2.54;
+        const totalUnits = length / pixelsPerUnit;
+        const fullUnits = Math.floor(totalUnits);
+
+        // 绘制主刻度和毫米刻度
+        for (let i = 0; i <= fullUnits; i++) {
+          const distance = i * pixelsPerUnit;
+          const x = distance * Math.cos(angle);
+          const y = distance * Math.sin(angle);
+
+          // 绘制主刻度
+          ctx.beginPath();
+          ctx.lineWidth = 1;
+          const perpAngle = angle + Math.PI / 2;
+          const scaleLength = 15;
+
+          ctx.moveTo(x, y);
+          ctx.lineTo(
+            x + Math.cos(perpAngle) * scaleLength,
+            y + Math.sin(perpAngle) * scaleLength
+          );
+          ctx.stroke();
+
+          // 添加数字
+          if (i > 0) {
+            ctx.save();
+            ctx.translate(
+              x + Math.cos(perpAngle) * (scaleLength + 10),
+              y + Math.sin(perpAngle) * (scaleLength + 10)
+            );
+            ctx.rotate(angle);
+            ctx.fillText(i.toString(), 0, 0);
+            ctx.restore();
+          }
+
+          // 绘制毫米刻度
+          if (i < totalUnits) {
+            const subDivisions = currentUnit === "cm" ? 10 : 8;
+            const remainingSpace =
+              i === fullUnits
+                ? (totalUnits - fullUnits) * subDivisions
+                : subDivisions;
+
+            for (let j = 1; j < remainingSpace; j++) {
+              const subDistance = distance + (j * pixelsPerUnit) / subDivisions;
+              const subX = subDistance * Math.cos(angle);
+              const subY = subDistance * Math.sin(angle);
+
+              ctx.beginPath();
+              ctx.lineWidth = 0.5;
+              const subScaleLength = currentUnit === "cm" && j === 5 ? 12 : 8;
+
+              ctx.moveTo(subX, subY);
+              ctx.lineTo(
+                subX + Math.cos(perpAngle) * subScaleLength,
+                subY + Math.sin(perpAngle) * subScaleLength
+              );
+              ctx.stroke();
+            }
+          }
+        }
+
+        ctx.restore();
+      }
+
+      // 初始化绘制
+      drawRuler();
+      window.addEventListener("resize", drawRuler);
+
+      // 添加信息按钮点击事件
+      document.getElementById("infoBtn").addEventListener("click", function () {
+        Android.showScreenInfo();
+      });
+    </script>
+  </body>
+</html>
